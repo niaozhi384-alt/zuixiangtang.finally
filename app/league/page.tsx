@@ -31,7 +31,7 @@ const RULES = [
   {
     icon: <Lock className="h-5 w-5" aria-hidden />,
     title: "名单保密",
-    text: "公开页面仅展示已报名名单。",
+    text: "报名名单仅首领登录后可见。",
   },
   {
     icon: <FileSpreadsheet className="h-5 w-5" aria-hidden />,

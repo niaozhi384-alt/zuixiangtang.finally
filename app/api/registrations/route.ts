@@ -11,8 +11,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const data = await listRegistrations();
-    return NextResponse.json({ ok: true, data, mode: dbMode() });
+    const rows = await listRegistrations();
+    // 公开接口不返回名单，只返回已报名人数；完整名单仅首领后台可见
+    return NextResponse.json({
+      ok: true,
+      data: { count: rows.length },
+      mode: dbMode(),
+    });
   } catch (error) {
     console.error("[api/registrations] 读取报名名单失败：", error);
     return NextResponse.json(

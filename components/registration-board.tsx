@@ -9,17 +9,8 @@ import {
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatMonthDay } from "@/lib/format";
 
 type Choice = "register" | "skip";
-
-interface RosterItem {
-  id: string;
-  gameName: string;
-  choice: Choice;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface Feedback {
   kind: "success" | "error";
@@ -31,31 +22,24 @@ export function RegistrationBoard() {
   const [choice, setChoice] = useState<Choice>("register");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [roster, setRoster] = useState<RosterItem[]>([]);
-  const [rosterLoading, setRosterLoading] = useState(true);
-  const [rosterError, setRosterError] = useState(false);
+  const [count, setCount] = useState<number | null>(null);
 
-  const loadRoster = useCallback(async () => {
+  const loadCount = useCallback(async () => {
     try {
       const response = await fetch("/api/registrations", { cache: "no-store" });
       const payload = (await response.json()) as {
         ok: boolean;
-        data?: RosterItem[];
-        error?: string;
+        data?: { count: number };
       };
-      if (!payload.ok) throw new Error(payload.error ?? "加载失败");
-      setRoster(payload.data ?? []);
-      setRosterError(false);
+      if (payload.ok) setCount(payload.data?.count ?? 0);
     } catch {
-      setRosterError(true);
-    } finally {
-      setRosterLoading(false);
+      setCount(null);
     }
   }, []);
 
   useEffect(() => {
-    void loadRoster();
-  }, [loadRoster]);
+    void loadCount();
+  }, [loadCount]);
 
   const normalizedName = useMemo(() => name.trim().replace(/\s+/g, " "), [name]);
 
@@ -92,7 +76,7 @@ export function RegistrationBoard() {
           ? "报名已提交。"
           : "已更新你的报名状态。",
       });
-      await loadRoster();
+      await loadCount();
     } catch {
       setFeedback({ kind: "error", text: "网络异常，请稍后重试。" });
     } finally {
@@ -101,10 +85,10 @@ export function RegistrationBoard() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+    <div className="mx-auto max-w-xl">
       <form
         onSubmit={handleSubmit}
-        className="rounded-lg border border-line bg-paper-soft p-6 sm:p-7"
+        className="rounded-lg border border-line bg-paper-soft p-6 sm:p-8"
       >
         <h3 className="flex items-center gap-2 font-serif text-lg font-semibold tracking-wider text-jade-900">
           <Swords className="h-5 w-5 text-gold-600" aria-hidden />
@@ -175,58 +159,14 @@ export function RegistrationBoard() {
         </div>
 
         <p className="mt-5 border-t border-line pt-4 text-xs leading-relaxed text-ink-faint">
-          重复提交将更新原记录；完整名单仅首领可见。
+          重复提交将更新原记录；报名名单仅首领登录后可见。
         </p>
       </form>
 
-      <section className="rounded-lg border border-line bg-paper-soft p-6 sm:p-7">
-        <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-2 font-serif text-lg font-semibold tracking-wider text-jade-900">
-            <Users className="h-5 w-5 text-gold-600" aria-hidden />
-            报名名单
-          </h3>
-          <span className="rounded-full border border-gold-400/60 bg-gold-100/60 px-3 py-1 text-xs tracking-wider text-gold-700">
-            已报名 {roster.length} 人
-          </span>
-        </div>
-
-        {rosterLoading ? (
-          <div className="mt-8 flex items-center justify-center gap-2 py-10 text-sm text-ink-faint">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            名单加载中…
-          </div>
-        ) : rosterError ? (
-          <div className="mt-8 flex items-center justify-center gap-2 py-10 text-sm text-ink-faint">
-            <TriangleAlert className="h-4 w-4" aria-hidden />
-            名单暂时无法加载，请稍后刷新页面。
-          </div>
-        ) : roster.length === 0 ? (
-          <div className="mt-8 py-10 text-center">
-            <p className="text-sm text-ink-faint">暂无报名</p>
-          </div>
-        ) : (
-          <ol className="mt-5 max-h-[26rem] space-y-2 overflow-y-auto pr-1">
-            {roster.map((item, index) => (
-              <li
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-paper px-3.5 py-2.5"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="font-serif text-sm text-gold-600">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="truncate text-sm text-ink">
-                    {item.gameName}
-                  </span>
-                </div>
-                <time className="shrink-0 text-xs text-ink-faint">
-                  {formatMonthDay(item.createdAt)}
-                </time>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      <p className="mt-5 flex items-center justify-center gap-2 text-sm text-ink-faint">
+        <Users className="h-4 w-4 text-gold-600" aria-hidden />
+        {count === null ? "统计加载中…" : `已有 ${count} 人报名`}
+      </p>
     </div>
   );
 }
