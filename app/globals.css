@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f5f0e6;
+  --color-paper-soft: #faf7ef;
+  --color-ink: #262019;
+  --color-ink-soft: #5c534a;
+  --color-ink-faint: #92867a;
+  --color-line: #e2d8c4;
+
+  --color-jade-50: #f0f5f2;
+  --color-jade-100: #dfeae4;
+  --color-jade-200: #c0d5cb;
+  --color-jade-300: #98b9ab;
+  --color-jade-400: #6f9c8a;
+  --color-jade-500: #527f6f;
+  --color-jade-600: #40685b;
+  --color-jade-700: #35564c;
+  --color-jade-800: #2b473f;
+  --color-jade-900: #213731;
+
+  --color-gold-100: #f3ead5;
+  --color-gold-200: #e6d6ad;
+  --color-gold-300: #d8c087;
+  --color-gold-400: #c8a964;
+  --color-gold-500: #b3914d;
+  --color-gold-600: #96783d;
+  --color-gold-700: #785f30;
+
+  --color-cinnabar: #a03b2d;
+  --color-cinnabar-deep: #7e2c21;
+
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", "Source Han Sans SC", system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Source Han Serif CN",
+    "Songti SC", "STSong", "SimSun", "Times New Roman", serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+::selection {
+  background-color: rgba(179, 145, 77, 0.28);
+}
+
+/* ── 宣纸质感：极淡的纸纹颗粒 ─────────────────────────────── */
+.paper-grain {
+  position: relative;
+}
+
+.paper-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+}
+
+/* ── 水墨晕染 ───────────────────────────────────────────── */
+.ink-wash {
+  background:
+    radial-gradient(
+      closest-side at 18% 12%,
+      rgba(53, 86, 76, 0.09),
+      transparent 62%
+    ),
+    radial-gradient(
+      closest-side at 86% 88%,
+      rgba(160, 59, 45, 0.05),
+      transparent 58%
+    );
+}
+
+.ink-wash-deep {
+  background:
+    radial-gradient(
+      closest-side at 12% 8%,
+      rgba(255, 255, 255, 0.06),
+      transparent 55%
+    ),
+    radial-gradient(
+      closest-side at 88% 90%,
+      rgba(201, 169, 100, 0.1),
+      transparent 60%
+    ),
+    linear-gradient(150deg, #223a33 0%, #1b2f29 55%, #152620 100%);
+}
+
+/* ── 竖排文字 ───────────────────────────────────────────── */
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.32em;
+}
+
+/* ── 入场与滚动显现动效 ─────────────────────────────────── */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-rise {
+  animation: rise 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.hero-rise-delay-1 {
+  animation: rise 0.9s 0.14s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.hero-rise-delay-2 {
+  animation: rise 0.9s 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.hero-rise-delay-3 {
+  animation: rise 0.9s 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.75s ease,
+    transform 0.75s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+[data-reveal="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .hero-rise,
+  .hero-rise-delay-1,
+  .hero-rise-delay-2,
+  .hero-rise-delay-3 {
+    animation: none;
+  }
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ── 印章呼吸光效 ───────────────────────────────────────── */
+@keyframes seal-glow {
+  0%,
+  100% {
+    box-shadow: 0 12px 34px -12px rgba(160, 59, 45, 0.42);
+  }
+  50% {
+    box-shadow: 0 16px 44px -10px rgba(160, 59, 45, 0.55);
+  }
+}
+
+.seal-glow {
+  animation: seal-glow 5.5s ease-in-out infinite;
+}

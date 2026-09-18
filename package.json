@@ -1,0 +1,31 @@
+{
+  "name": "zuixiangtang",
+  "version": "1.0.0",
+  "private": true,
+  "description": "醉乡堂 · Clash of Clans 部落官网（联赛报名 / 首领后台 / 每日一言）",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^1.47.0",
+    "next": "^15.5.25",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  }
+}

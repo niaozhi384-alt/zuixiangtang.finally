@@ -1,0 +1,23 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# local data & secrets
+/.data
+.env
+.env.*
+!.env.example
+
+# vercel
+/.vercel
+
+# misc
+.DS_Store
+*.log
