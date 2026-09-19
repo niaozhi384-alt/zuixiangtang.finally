@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { dbMode } from "@/lib/config";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { registrationWindowStatus } from "@/lib/registration-window";
 import {
+  getRegistrationWindow,
   listRegistrations,
   upsertRegistration,
   type RegistrationChoice,
@@ -12,10 +14,20 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const rows = await listRegistrations();
-    // 公开接口不返回名单，只返回已报名人数；完整名单仅首领后台可见
+    const window = await getRegistrationWindow();
+    const status = registrationWindowStatus(window);
+    // 公开接口不返回名单，只返回已报名人数与报名时间状态；完整名单仅首领后台可见
     return NextResponse.json({
       ok: true,
-      data: { count: rows.length },
+      data: {
+        count: rows.length,
+        window: {
+          startAt: window.startAt,
+          endAt: window.endAt,
+          open: status.open,
+          message: status.message,
+        },
+      },
       mode: dbMode(),
     });
   } catch (error) {
@@ -73,6 +85,20 @@ export async function POST(request: Request) {
       { ok: false, error: "请选择是否报名。" },
       { status: 400 }
     );
+  }
+
+  // 报名时间窗口校验：未开始或已结束时拒绝提交
+  try {
+    const window = await getRegistrationWindow();
+    const status = registrationWindowStatus(window);
+    if (!status.open) {
+      return NextResponse.json(
+        { ok: false, error: status.message ?? "当前不在报名时间内。" },
+        { status: 403 }
+      );
+    }
+  } catch (error) {
+    console.error("[api/registrations] 读取报名时间失败：", error);
   }
 
   try {

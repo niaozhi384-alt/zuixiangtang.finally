@@ -2,6 +2,7 @@
 
 import {
   Ban,
+  CalendarClock,
   CheckCircle2,
   Loader2,
   Swords,
@@ -9,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatDateTime } from "@/lib/format";
 
 type Choice = "register" | "skip";
 
@@ -17,35 +19,49 @@ interface Feedback {
   text: string;
 }
 
+interface WindowState {
+  startAt: string | null;
+  endAt: string | null;
+  open: boolean;
+  message: string | null;
+}
+
 export function RegistrationBoard() {
   const [name, setName] = useState("");
   const [choice, setChoice] = useState<Choice>("register");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const [windowState, setWindowState] = useState<WindowState | null>(null);
 
-  const loadCount = useCallback(async () => {
+  const loadStatus = useCallback(async () => {
     try {
       const response = await fetch("/api/registrations", { cache: "no-store" });
       const payload = (await response.json()) as {
         ok: boolean;
-        data?: { count: number };
+        data?: { count: number; window: WindowState };
       };
-      if (payload.ok) setCount(payload.data?.count ?? 0);
+      if (payload.ok) {
+        setCount(payload.data?.count ?? 0);
+        setWindowState(payload.data?.window ?? null);
+      }
     } catch {
       setCount(null);
+      setWindowState(null);
     }
   }, []);
 
   useEffect(() => {
-    void loadCount();
-  }, [loadCount]);
+    void loadStatus();
+  }, [loadStatus]);
 
   const normalizedName = useMemo(() => name.trim().replace(/\s+/g, " "), [name]);
+  const closed = windowState !== null && !windowState.open;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
+    if (closed) return;
     if (!normalizedName) {
       setFeedback({ kind: "error", text: "请输入游戏名称。" });
       return;
@@ -76,7 +92,7 @@ export function RegistrationBoard() {
           ? "报名已提交。"
           : "已更新你的报名状态。",
       });
-      await loadCount();
+      await loadStatus();
     } catch {
       setFeedback({ kind: "error", text: "网络异常，请稍后重试。" });
     } finally {
@@ -86,6 +102,13 @@ export function RegistrationBoard() {
 
   return (
     <div className="mx-auto max-w-xl">
+      {closed && windowState && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-cinnabar/30 bg-cinnabar/5 px-4 py-3 text-sm leading-relaxed text-cinnabar">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          {windowState.message}，当前暂不能提交。
+        </div>
+      )}
+
       <form
         onSubmit={handleSubmit}
         className="rounded-lg border border-line bg-paper-soft p-6 sm:p-8"
@@ -106,7 +129,8 @@ export function RegistrationBoard() {
             onChange={(event) => setName(event.target.value)}
             placeholder="请输入游戏名称"
             autoComplete="off"
-            className="w-full rounded-md border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-jade-600 focus:ring-2 focus:ring-jade-600/15"
+            disabled={closed}
+            className="w-full rounded-md border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-jade-600 focus:ring-2 focus:ring-jade-600/15 disabled:cursor-not-allowed disabled:opacity-60"
           />
         </label>
 
@@ -118,12 +142,14 @@ export function RegistrationBoard() {
             <ChoiceButton
               active={choice === "register"}
               onClick={() => setChoice("register")}
+              disabled={closed}
               icon={<Swords className="h-4 w-4" aria-hidden />}
               label="报名参加"
             />
             <ChoiceButton
               active={choice === "skip"}
               onClick={() => setChoice("skip")}
+              disabled={closed}
               icon={<Ban className="h-4 w-4" aria-hidden />}
               label="暂不参加"
             />
@@ -132,7 +158,7 @@ export function RegistrationBoard() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || closed}
           className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md bg-jade-800 px-6 py-3 text-sm tracking-[0.25em] text-paper transition-all hover:bg-jade-900 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
@@ -163,10 +189,23 @@ export function RegistrationBoard() {
         </p>
       </form>
 
-      <p className="mt-5 flex items-center justify-center gap-2 text-sm text-ink-faint">
-        <Users className="h-4 w-4 text-gold-600" aria-hidden />
-        {count === null ? "统计加载中…" : `已有 ${count} 人报名`}
-      </p>
+      <div className="mt-5 space-y-2 text-center text-sm text-ink-faint">
+        <p className="flex items-center justify-center gap-2">
+          <Users className="h-4 w-4 text-gold-600" aria-hidden />
+          {count === null ? "统计加载中…" : `已有 ${count} 人报名`}
+        </p>
+        {windowState && (windowState.startAt || windowState.endAt) && (
+          <p className="flex items-center justify-center gap-1.5">
+            <CalendarClock className="h-4 w-4 text-gold-600" aria-hidden />
+            报名时间：
+            {windowState.startAt
+              ? formatDateTime(windowState.startAt)
+              : "不限"}
+            {" — "}
+            {windowState.endAt ? formatDateTime(windowState.endAt) : "不限"}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -174,11 +213,13 @@ export function RegistrationBoard() {
 function ChoiceButton({
   active,
   onClick,
+  disabled = false,
   icon,
   label,
 }: {
   active: boolean;
   onClick: () => void;
+  disabled?: boolean;
   icon: React.ReactNode;
   label: string;
 }) {
@@ -187,7 +228,8 @@ function ChoiceButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-all ${
+      disabled={disabled}
+      className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
         active
           ? "border-jade-700 bg-jade-800 text-paper shadow-sm"
           : "border-line bg-paper text-ink-soft hover:border-jade-500"

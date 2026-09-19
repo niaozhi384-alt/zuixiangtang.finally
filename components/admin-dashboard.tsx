@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarClock,
   Crown,
   Download,
   FileSpreadsheet,
@@ -13,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, toShanghaiDateTimeLocal } from "@/lib/format";
 
 type Choice = "register" | "skip";
 
@@ -49,6 +50,13 @@ export function AdminDashboard({ username }: { username: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [windowStart, setWindowStart] = useState("");
+  const [windowEnd, setWindowEnd] = useState("");
+  const [savingWindow, setSavingWindow] = useState(false);
+  const [windowMsg, setWindowMsg] = useState<{
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const loadRows = useCallback(async () => {
     try {
@@ -71,9 +79,29 @@ export function AdminDashboard({ username }: { username: string }) {
     }
   }, []);
 
+  const loadWindow = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/settings", {
+        cache: "no-store",
+      });
+      if (response.status === 401) return;
+      const payload = (await response.json()) as {
+        ok: boolean;
+        data?: { startAt: string | null; endAt: string | null };
+      };
+      if (payload.ok) {
+        setWindowStart(toShanghaiDateTimeLocal(payload.data?.startAt));
+        setWindowEnd(toShanghaiDateTimeLocal(payload.data?.endAt));
+      }
+    } catch {
+      // 忽略加载失败，避免影响主列表
+    }
+  }, []);
+
   useEffect(() => {
     void loadRows();
-  }, [loadRows]);
+    void loadWindow();
+  }, [loadRows, loadWindow]);
 
   async function handleDelete(id: string, gameName: string) {
     if (deletingId) return;
@@ -102,6 +130,35 @@ export function AdminDashboard({ username }: { username: string }) {
       await fetch("/api/admin/logout", { method: "POST" });
     } finally {
       window.location.href = "/admin";
+    }
+  }
+
+  async function handleSaveWindow() {
+    if (savingWindow) return;
+    setSavingWindow(true);
+    setWindowMsg(null);
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startAt: windowStart, endAt: windowEnd }),
+      });
+      const payload = (await response.json()) as {
+        ok: boolean;
+        error?: string;
+      };
+      if (!payload.ok) {
+        setWindowMsg({
+          kind: "error",
+          text: payload.error ?? "保存失败，请稍后再试。",
+        });
+        return;
+      }
+      setWindowMsg({ kind: "success", text: "报名时间已保存。" });
+    } catch {
+      setWindowMsg({ kind: "error", text: "网络异常，保存失败。" });
+    } finally {
+      setSavingWindow(false);
     }
   }
 
@@ -188,6 +245,67 @@ export function AdminDashboard({ username }: { username: string }) {
           value={skipCount}
         />
       </div>
+
+      <section className="mt-6 rounded-lg border border-line bg-paper-soft p-5 sm:p-6">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-gold-600" aria-hidden />
+          <h2 className="font-serif text-base font-semibold tracking-wider text-jade-900">
+            报名时间设置
+          </h2>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+          设置联赛报名的开始与结束时间（按北京时间）。留空表示不限制；
+          未开始或已结束时段，成员将无法提交报名。
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm tracking-wider text-ink-soft">
+              开始时间
+            </span>
+            <input
+              type="datetime-local"
+              value={windowStart}
+              onChange={(event) => setWindowStart(event.target.value)}
+              className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none transition focus:border-jade-600 focus:ring-2 focus:ring-jade-600/15"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm tracking-wider text-ink-soft">
+              结束时间
+            </span>
+            <input
+              type="datetime-local"
+              value={windowEnd}
+              onChange={(event) => setWindowEnd(event.target.value)}
+              className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none transition focus:border-jade-600 focus:ring-2 focus:ring-jade-600/15"
+            />
+          </label>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSaveWindow}
+            disabled={savingWindow}
+            className="inline-flex items-center gap-2 rounded-md bg-jade-800 px-5 py-2.5 text-sm tracking-wider text-paper transition-colors hover:bg-jade-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {savingWindow && (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            )}
+            {savingWindow ? "保存中…" : "保存设置"}
+          </button>
+          {windowMsg && (
+            <span
+              className={`text-sm ${
+                windowMsg.kind === "success"
+                  ? "text-jade-700"
+                  : "text-cinnabar"
+              }`}
+            >
+              {windowMsg.text}
+            </span>
+          )}
+        </div>
+      </section>
 
       <section className="mt-6 overflow-hidden rounded-lg border border-line bg-paper-soft">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">

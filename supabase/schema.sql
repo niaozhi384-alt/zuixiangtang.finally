@@ -22,6 +22,14 @@ create table if not exists hitokoto_cache (
   updated_at timestamptz not null default now()
 );
 
+-- 报名时间设置表：仅一行（id=1），由首领后台维护
+create table if not exists registration_settings (
+  id smallint primary key default 1 check (id = 1),
+  start_at timestamptz,
+  end_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists idx_registrations_choice
   on registrations (choice);
 create index if not exists idx_registrations_created
@@ -30,6 +38,7 @@ create index if not exists idx_registrations_created
 -- 行级安全（RLS）
 alter table registrations enable row level security;
 alter table hitokoto_cache enable row level security;
+alter table registration_settings enable row level security;
 
 -- 成员端（匿名密钥）权限：可读、可提交、可修改；不可删除
 drop policy if exists "public can read registrations" on registrations;
@@ -52,6 +61,16 @@ drop policy if exists "public can read hitokoto cache" on hitokoto_cache;
 create policy "public can read hitokoto cache"
   on hitokoto_cache for select
   using (true);
+
+-- 报名时间设置：所有人可读（用于页面显示报名状态），写入由服务端密钥完成
+drop policy if exists "public can read registration settings" on registration_settings;
+create policy "public can read registration settings"
+  on registration_settings for select
+  using (true);
+
+insert into registration_settings (id, start_at, end_at)
+values (1, null, null)
+on conflict (id) do nothing;
 
 -- 说明：服务端使用 SERVICE_ROLE_KEY，具备最高权限，可删除记录，
 -- 因此匿名成员无法通过公开接口删除任何报名数据。

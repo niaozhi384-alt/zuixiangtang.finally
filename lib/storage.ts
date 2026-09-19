@@ -23,6 +23,12 @@ export interface HitokotoRecord {
 interface LocalStore {
   registrations: Registration[];
   hitokoto: Record<string, HitokotoRecord>;
+  window: RegistrationWindow | null;
+}
+
+export interface RegistrationWindow {
+  startAt: string | null;
+  endAt: string | null;
 }
 
 type SupabaseRegistrationRow = {
@@ -37,6 +43,12 @@ type SupabaseHitokotoRow = {
   date: string;
   hitokoto: string;
   from_who: string;
+};
+
+type SupabaseRegistrationSettingsRow = {
+  id: number;
+  start_at: string | null;
+  end_at: string | null;
 };
 
 function mapRow(row: SupabaseRegistrationRow): Registration {
@@ -68,9 +80,22 @@ async function readLocalStore(): Promise<LocalStore> {
         parsed.hitokoto && typeof parsed.hitokoto === "object"
           ? parsed.hitokoto
           : {},
+      window:
+        parsed.window && typeof parsed.window === "object"
+          ? {
+              startAt:
+                typeof parsed.window.startAt === "string"
+                  ? parsed.window.startAt
+                  : null,
+              endAt:
+                typeof parsed.window.endAt === "string"
+                  ? parsed.window.endAt
+                  : null,
+            }
+          : null,
     };
   } catch {
-    return { registrations: [], hitokoto: {} };
+    return { registrations: [], hitokoto: {}, window: null };
   }
 }
 
@@ -239,5 +264,47 @@ export async function saveHitokotoCache(
   }
   const store = await readLocalStore();
   store.hitokoto[date] = { text, from };
+  await writeLocalStore(store);
+}
+
+export async function getRegistrationWindow(): Promise<RegistrationWindow> {
+  const db = getSupabase();
+  if (db) {
+    const { data, error } = await db
+      .from("registration_settings")
+      .select("start_at, end_at")
+      .eq("id", 1)
+      .maybeSingle();
+    if (error) throw error;
+    const row = data as SupabaseRegistrationSettingsRow | null;
+    return {
+      startAt: row?.start_at ?? null,
+      endAt: row?.end_at ?? null,
+    };
+  }
+  const store = await readLocalStore();
+  return store.window ?? { startAt: null, endAt: null };
+}
+
+export async function setRegistrationWindow(
+  startAt: string | null,
+  endAt: string | null
+): Promise<void> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    const { error } = await admin.from("registration_settings").upsert(
+      {
+        id: 1,
+        start_at: startAt,
+        end_at: endAt,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+    if (error) throw error;
+    return;
+  }
+  const store = await readLocalStore();
+  store.window = { startAt, endAt };
   await writeLocalStore(store);
 }
