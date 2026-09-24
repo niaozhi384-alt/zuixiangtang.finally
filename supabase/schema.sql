@@ -30,6 +30,20 @@ create table if not exists registration_settings (
   updated_at timestamptz not null default now()
 );
 
+-- 匿名留言表：仅首领（服务端密钥）可读
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+-- 站点内容表：支持首领在线修改首页内容（如部落介绍）
+create table if not exists site_content (
+  key text primary key,
+  value text not null default '',
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists idx_registrations_choice
   on registrations (choice);
 create index if not exists idx_registrations_created
@@ -39,6 +53,8 @@ create index if not exists idx_registrations_created
 alter table registrations enable row level security;
 alter table hitokoto_cache enable row level security;
 alter table registration_settings enable row level security;
+alter table messages enable row level security;
+alter table site_content enable row level security;
 
 -- 成员端（匿名密钥）权限：可读、可提交、可修改；不可删除
 drop policy if exists "public can read registrations" on registrations;
@@ -68,9 +84,25 @@ create policy "public can read registration settings"
   on registration_settings for select
   using (true);
 
+-- 匿名留言：任何人可提交，读取仅服务端密钥
+drop policy if exists "public can insert messages" on messages;
+create policy "public can insert messages"
+  on messages for insert
+  with check (true);
+
+-- 站点内容：所有人可读，写入由服务端密钥完成
+drop policy if exists "public can read site content" on site_content;
+create policy "public can read site content"
+  on site_content for select
+  using (true);
+
 insert into registration_settings (id, start_at, end_at)
 values (1, null, null)
 on conflict (id) do nothing;
+
+insert into site_content (key, value)
+values ('clan_intro', '')
+on conflict (key) do nothing;
 
 -- 说明：服务端使用 SERVICE_ROLE_KEY，具备最高权限，可删除记录，
 -- 因此匿名成员无法通过公开接口删除任何报名数据。

@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: "/", label: "首页" },
   { href: "/#about", label: "部落介绍" },
   { href: "/league", label: "联赛报名" },
+  { href: "/#download", label: "游戏下载" },
   { href: "/#join", label: "加入部落" },
 ];
 

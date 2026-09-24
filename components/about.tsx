@@ -1,4 +1,7 @@
+"use client";
+
 import { Crown, Gift, ScrollText, Shield, Swords } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Reveal } from "@/components/reveal";
 
 interface AboutCardProps {
@@ -39,7 +42,65 @@ function AboutCard({ icon, title, items, note, delay = 0 }: AboutCardProps) {
   );
 }
 
+const DEFAULT_CARDS: AboutCardProps[] = [
+  {
+    icon: <Swords className="h-5 w-5" aria-hidden />,
+    title: "部落活动",
+    items: ["部落战 · 联赛 · 竞赛", "十级都城"],
+    note: "有奶🍼 兼顾休闲娱乐",
+  },
+  {
+    icon: <Shield className="h-5 w-5" aria-hidden />,
+    title: "晋升之阶",
+    items: ["捐兵一千 · 长老", "捐兵两千 · 副首"],
+    delay: 60,
+  },
+  {
+    icon: <Gift className="h-5 w-5" aria-hidden />,
+    title: "奖励机制",
+    items: ["竞赛第一：5 元 🧧", "联赛第一：8.88"],
+    note: "并列第一看捐兵数与活跃度",
+    delay: 120,
+  },
+  {
+    icon: <Crown className="h-5 w-5" aria-hidden />,
+    title: "职位增幅",
+    items: ["长老：奖励增幅 0.05", "副首：奖励增幅 0.25"],
+    note: "仅群成员有效",
+    delay: 60,
+  },
+  {
+    icon: <ScrollText className="h-5 w-5" aria-hidden />,
+    title: "联赛纪律",
+    items: ["挂绿牌未打、乱打者", "有职位降职 · 无职位 ✈"],
+    delay: 120,
+  },
+];
+
 export function About() {
+  const [intro, setIntro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/site-content?key=clan_intro", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { ok: boolean; data?: { value?: string } }) => {
+        if (!cancelled) {
+          setIntro(
+            payload.ok && typeof payload.data?.value === "string"
+              ? payload.data.value
+              : ""
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setIntro("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section id="about" className="scroll-mt-20 py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -52,40 +113,31 @@ export function About() {
           </div>
         </Reveal>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <AboutCard
-            icon={<Swords className="h-5 w-5" aria-hidden />}
-            title="部落活动"
-            items={["部落战 · 联赛 · 竞赛", "十级都城"]}
-            note="有奶🍼 兼顾休闲娱乐"
-          />
-          <AboutCard
-            icon={<Shield className="h-5 w-5" aria-hidden />}
-            title="晋升之阶"
-            items={["捐兵一千 · 长老", "捐兵两千 · 副首"]}
-            delay={60}
-          />
-          <AboutCard
-            icon={<Gift className="h-5 w-5" aria-hidden />}
-            title="奖励机制"
-            items={["竞赛第一：5 元 🧧", "联赛第一：8.88"]}
-            note="并列第一看捐兵数与活跃度"
-            delay={120}
-          />
-          <AboutCard
-            icon={<Crown className="h-5 w-5" aria-hidden />}
-            title="职位增幅"
-            items={["长老：奖励增幅 0.05", "副首：奖励增幅 0.25"]}
-            note="仅群成员有效"
-            delay={60}
-          />
-          <AboutCard
-            icon={<ScrollText className="h-5 w-5" aria-hidden />}
-            title="联赛纪律"
-            items={["挂绿牌未打、乱打者", "有职位降职 · 无职位 ✈"]}
-            delay={120}
-          />
-        </div>
+        {intro !== null && intro.trim() !== "" ? (
+          <Reveal>
+            <article className="mx-auto max-w-4xl rounded-lg border border-line bg-paper-soft px-8 py-8 shadow-[0_18px_44px_-26px_rgba(38,32,25,0.3)] sm:px-12">
+              {intro
+                .split(/\n+/)
+                .filter(Boolean)
+                .map((paragraph, index) => (
+                  <p
+                    key={index}
+                    className="whitespace-pre-wrap font-serif text-base leading-loose text-ink-soft sm:text-lg [&:not(:first-child)]:mt-5"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+            </article>
+          </Reveal>
+        ) : (
+          intro !== null && (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {DEFAULT_CARDS.map((card) => (
+                <AboutCard key={card.title} {...card} />
+              ))}
+            </div>
+          )
+        )}
 
         <Reveal delay={140}>
           <p className="mt-10 text-center font-serif text-base text-ink-soft sm:text-lg">

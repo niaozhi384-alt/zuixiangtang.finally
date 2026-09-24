@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { formatDateTime, toShanghaiDateTimeLocal } from "@/lib/format";
+import { AdminIntroEditor } from "@/components/admin-intro-editor";
+import { AdminMessages } from "@/components/admin-messages";
 
 type Choice = "register" | "skip";
 
@@ -307,6 +309,8 @@ export function AdminDashboard({ username }: { username: string }) {
         </div>
       </section>
 
+      <AdminIntroEditor />
+
       <section className="mt-6 overflow-hidden rounded-lg border border-line bg-paper-soft">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-serif text-base font-semibold tracking-wider text-jade-900">
@@ -398,6 +402,8 @@ export function AdminDashboard({ username }: { username: string }) {
           </div>
         )}
       </section>
+
+      <AdminMessages />
     </div>
   );
 }

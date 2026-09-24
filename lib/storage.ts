@@ -20,10 +20,18 @@ export interface HitokotoRecord {
   from: string;
 }
 
+export interface ClanMessage {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
 interface LocalStore {
   registrations: Registration[];
   hitokoto: Record<string, HitokotoRecord>;
   window: RegistrationWindow | null;
+  messages: ClanMessage[];
+  siteContent: Record<string, string>;
 }
 
 export interface RegistrationWindow {
@@ -49,6 +57,12 @@ type SupabaseRegistrationSettingsRow = {
   id: number;
   start_at: string | null;
   end_at: string | null;
+};
+
+type SupabaseMessageRow = {
+  id: string;
+  content: string;
+  created_at: string;
 };
 
 function mapRow(row: SupabaseRegistrationRow): Registration {
@@ -93,9 +107,20 @@ async function readLocalStore(): Promise<LocalStore> {
                   : null,
             }
           : null,
+      messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+      siteContent:
+        parsed.siteContent && typeof parsed.siteContent === "object"
+          ? parsed.siteContent
+          : {},
     };
   } catch {
-    return { registrations: [], hitokoto: {}, window: null };
+    return {
+      registrations: [],
+      hitokoto: {},
+      window: null,
+      messages: [],
+      siteContent: {},
+    };
   }
 }
 
@@ -307,4 +332,97 @@ export async function setRegistrationWindow(
   const store = await readLocalStore();
   store.window = { startAt, endAt };
   await writeLocalStore(store);
+}
+
+export async function getSiteContent(key: string): Promise<string> {
+  const db = getSupabase();
+  if (db) {
+    const { data, error } = await db
+      .from("site_content")
+      .select("value")
+      .eq("key", key)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as { value: string } | null)?.value ?? "";
+  }
+  const store = await readLocalStore();
+  return store.siteContent[key] ?? "";
+}
+
+export async function setSiteContent(key: string, value: string): Promise<void> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    const { error } = await admin.from("site_content").upsert(
+      { key, value, updated_at: new Date().toISOString() },
+      { onConflict: "key" }
+    );
+    if (error) throw error;
+    return;
+  }
+  const store = await readLocalStore();
+  store.siteContent[key] = value;
+  await writeLocalStore(store);
+}
+
+export async function addMessage(content: string): Promise<ClanMessage> {
+  const db = getSupabase();
+  if (db) {
+    // 匿名身份对 messages 无读取权限，插入不带 RETURNING，避免触发行级安全限制
+    const { error } = await db.from("messages").insert({ content });
+    if (error) throw error;
+    return {
+      id: randomUUID(),
+      content,
+      createdAt: new Date().toISOString(),
+    };
+  }
+  const store = await readLocalStore();
+  const record: ClanMessage = {
+    id: randomUUID(),
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  store.messages.push(record);
+  await writeLocalStore(store);
+  return record;
+}
+
+export async function listMessages(): Promise<ClanMessage[]> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    const { data, error } = await admin
+      .from("messages")
+      .select("id, content, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data as SupabaseMessageRow[]).map((row) => ({
+      id: row.id,
+      content: row.content,
+      createdAt: row.created_at,
+    }));
+  }
+  const store = await readLocalStore();
+  return [...store.messages].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt)
+  );
+}
+
+export async function deleteMessage(id: string): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    const { data, error } = await admin
+      .from("messages")
+      .delete()
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  }
+  const store = await readLocalStore();
+  const before = store.messages.length;
+  store.messages = store.messages.filter((message) => message.id !== id);
+  if (store.messages.length === before) return false;
+  await writeLocalStore(store);
+  return true;
 }

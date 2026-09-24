@@ -34,6 +34,12 @@ export function Footer() {
               <Link href="/league" className="transition-colors hover:text-paper">
                 联赛报名
               </Link>
+              <Link href="/#download" className="transition-colors hover:text-paper">
+                游戏下载
+              </Link>
+              <Link href="/#message" className="transition-colors hover:text-paper">
+                留言板
+              </Link>
               <Link href="/#join" className="transition-colors hover:text-paper">
                 加入部落
               </Link>
