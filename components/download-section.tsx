@@ -11,7 +11,7 @@ export function DownloadSection() {
             部落冲突国际服
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-ink-soft sm:text-base">
-            国服玩家经常找不到国际服安装包？点击下方按钮，前往下载部落冲突国际服最新安装包。
+            点击下方按钮，前往下载部落冲突国际服最新安装包。
           </p>
         </Reveal>
         <Reveal delay={100}>

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSiteContent } from "@/lib/storage";
+import { getSiteContent, listIntroModules } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_KEYS = new Set(["clan_intro"]);
+const ALLOWED_KEYS = new Set(["clan_intro", "intro_modules"]);
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -15,6 +15,10 @@ export async function GET(request: Request) {
     );
   }
   try {
+    if (key === "intro_modules") {
+      const modules = await listIntroModules();
+      return NextResponse.json({ ok: true, data: { key, modules } });
+    }
     const value = await getSiteContent(key);
     return NextResponse.json({ ok: true, data: { key, value } });
   } catch (error) {

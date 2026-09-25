@@ -3,6 +3,10 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { dbMode } from "@/lib/config";
+import {
+  DEFAULT_INTRO_MODULES,
+  type IntroModuleInput,
+} from "@/lib/intro-modules";
 import { getSupabase, getSupabaseAdmin } from "@/lib/supabase";
 
 export type RegistrationChoice = "register" | "skip";
@@ -26,12 +30,21 @@ export interface ClanMessage {
   createdAt: string;
 }
 
+export interface IntroModule {
+  id: string;
+  title: string;
+  items: string;
+  note: string;
+  sortOrder: number;
+}
+
 interface LocalStore {
   registrations: Registration[];
   hitokoto: Record<string, HitokotoRecord>;
   window: RegistrationWindow | null;
   messages: ClanMessage[];
   siteContent: Record<string, string>;
+  introModules: IntroModule[];
 }
 
 export interface RegistrationWindow {
@@ -63,6 +76,14 @@ type SupabaseMessageRow = {
   id: string;
   content: string;
   created_at: string;
+};
+
+type SupabaseIntroModuleRow = {
+  id: string;
+  title: string;
+  items: string;
+  note: string;
+  sort_order: number;
 };
 
 function mapRow(row: SupabaseRegistrationRow): Registration {
@@ -112,6 +133,9 @@ async function readLocalStore(): Promise<LocalStore> {
         parsed.siteContent && typeof parsed.siteContent === "object"
           ? parsed.siteContent
           : {},
+      introModules: Array.isArray(parsed.introModules)
+        ? parsed.introModules
+        : [],
     };
   } catch {
     return {
@@ -120,6 +144,7 @@ async function readLocalStore(): Promise<LocalStore> {
       window: null,
       messages: [],
       siteContent: {},
+      introModules: [],
     };
   }
 }
@@ -425,4 +450,78 @@ export async function deleteMessage(id: string): Promise<boolean> {
   if (store.messages.length === before) return false;
   await writeLocalStore(store);
   return true;
+}
+
+export async function listIntroModules(): Promise<IntroModule[]> {
+  const db = getSupabase();
+  if (db) {
+    const { data, error } = await db
+      .from("intro_modules")
+      .select("id, title, items, note, sort_order")
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as SupabaseIntroModuleRow[]).map((row) => ({
+      id: row.id,
+      title: row.title,
+      items: row.items,
+      note: row.note,
+      sortOrder: row.sort_order,
+    }));
+  }
+  const store = await readLocalStore();
+  if (store.introModules.length > 0) return store.introModules;
+  const defaults = DEFAULT_INTRO_MODULES.map((module, index) => ({
+    id: randomUUID(),
+    title: module.title,
+    items: module.items,
+    note: module.note,
+    sortOrder: index + 1,
+  }));
+  store.introModules = defaults;
+  await writeLocalStore(store);
+  return defaults;
+}
+
+export async function replaceIntroModules(
+  inputs: IntroModuleInput[]
+): Promise<IntroModule[]> {
+  const rows = inputs.map((input, index) => ({
+    id:
+      input.id && /^[\w-]{1,64}$/.test(input.id)
+        ? input.id
+        : randomUUID(),
+    title: input.title,
+    items: input.items,
+    note: input.note,
+    sort_order: index + 1,
+  }));
+
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    const { error: deleteError } = await admin
+      .from("intro_modules")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    if (deleteError) throw deleteError;
+    const { error } = await admin.from("intro_modules").insert(rows);
+    if (error) throw error;
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      items: row.items,
+      note: row.note,
+      sortOrder: row.sort_order,
+    }));
+  }
+
+  const store = await readLocalStore();
+  store.introModules = rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    items: row.items,
+    note: row.note,
+    sortOrder: row.sort_order,
+  }));
+  await writeLocalStore(store);
+  return store.introModules;
 }

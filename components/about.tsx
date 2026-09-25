@@ -1,8 +1,23 @@
 "use client";
 
-import { Crown, Gift, ScrollText, Shield, Swords } from "lucide-react";
+import {
+  Crown,
+  Gift,
+  ScrollText,
+  Shield,
+  Sparkles,
+  Swords,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Reveal } from "@/components/reveal";
+import { DEFAULT_INTRO_MODULES } from "@/lib/intro-modules";
+
+interface IntroModuleView {
+  id: string;
+  title: string;
+  items: string;
+  note: string;
+}
 
 interface AboutCardProps {
   icon: React.ReactNode;
@@ -28,7 +43,7 @@ function AboutCard({ icon, title, items, note, delay = 0 }: AboutCardProps) {
           {items.map((item) => (
             <li key={item} className="flex items-baseline gap-2">
               <span className="h-1 w-1 shrink-0 translate-y-[-2px] rounded-full bg-gold-500" />
-              <span>{item}</span>
+              <span className="whitespace-pre-wrap">{item}</span>
             </li>
           ))}
         </ul>
@@ -42,64 +57,75 @@ function AboutCard({ icon, title, items, note, delay = 0 }: AboutCardProps) {
   );
 }
 
-const DEFAULT_CARDS: AboutCardProps[] = [
-  {
-    icon: <Swords className="h-5 w-5" aria-hidden />,
-    title: "部落活动",
-    items: ["部落战 · 联赛 · 竞赛", "十级都城"],
-    note: "有奶🍼 兼顾休闲娱乐",
-  },
-  {
-    icon: <Shield className="h-5 w-5" aria-hidden />,
-    title: "晋升之阶",
-    items: ["捐兵一千 · 长老", "捐兵两千 · 副首"],
-    delay: 60,
-  },
-  {
-    icon: <Gift className="h-5 w-5" aria-hidden />,
-    title: "奖励机制",
-    items: ["竞赛第一：5 元 🧧", "联赛第一：8.88"],
-    note: "并列第一看捐兵数与活跃度",
-    delay: 120,
-  },
-  {
-    icon: <Crown className="h-5 w-5" aria-hidden />,
-    title: "职位增幅",
-    items: ["长老：奖励增幅 0.05", "副首：奖励增幅 0.25"],
-    note: "仅群成员有效",
-    delay: 60,
-  },
-  {
-    icon: <ScrollText className="h-5 w-5" aria-hidden />,
-    title: "联赛纪律",
-    items: ["挂绿牌未打、乱打者", "有职位降职 · 无职位 ✈"],
-    delay: 120,
-  },
-];
+function iconFor(title: string): React.ReactNode {
+  switch (title) {
+    case "部落活动":
+      return <Swords className="h-5 w-5" aria-hidden />;
+    case "晋升之阶":
+      return <Shield className="h-5 w-5" aria-hidden />;
+    case "奖励机制":
+      return <Gift className="h-5 w-5" aria-hidden />;
+    case "职位增幅":
+      return <Crown className="h-5 w-5" aria-hidden />;
+    case "联赛纪律":
+      return <ScrollText className="h-5 w-5" aria-hidden />;
+    default:
+      return <Sparkles className="h-5 w-5" aria-hidden />;
+  }
+}
+
+function toItems(raw: string): string[] {
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
 export function About() {
-  const [intro, setIntro] = useState<string | null>(null);
+  const [modules, setModules] = useState<IntroModuleView[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/site-content?key=clan_intro", { cache: "no-store" })
+    fetch("/api/site-content?key=intro_modules", { cache: "no-store" })
       .then((response) => response.json())
-      .then((payload: { ok: boolean; data?: { value?: string } }) => {
-        if (!cancelled) {
-          setIntro(
-            payload.ok && typeof payload.data?.value === "string"
-              ? payload.data.value
-              : ""
-          );
+      .then(
+        (payload: {
+          ok: boolean;
+          data?: { modules?: IntroModuleView[] };
+        }) => {
+          if (!cancelled) {
+            setModules(
+              payload.ok && Array.isArray(payload.data?.modules)
+                ? payload.data.modules
+                : []
+            );
+          }
         }
-      })
+      )
       .catch(() => {
-        if (!cancelled) setIntro("");
+        if (!cancelled) setModules([]);
       });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const cards =
+    modules && modules.length > 0
+      ? modules.map((module) => ({
+          id: module.id,
+          title: module.title,
+          items: toItems(module.items),
+          note: module.note || undefined,
+        }))
+      : modules !== null
+        ? DEFAULT_INTRO_MODULES.map((module) => ({
+            id: module.title,
+            title: module.title,
+            items: toItems(module.items),
+            note: module.note || undefined,
+          }))
+        : [];
 
   return (
     <section id="about" className="scroll-mt-20 py-14 sm:py-20">
@@ -113,30 +139,19 @@ export function About() {
           </div>
         </Reveal>
 
-        {intro !== null && intro.trim() !== "" ? (
-          <Reveal>
-            <article className="mx-auto max-w-4xl rounded-lg border border-line bg-paper-soft px-8 py-8 shadow-[0_18px_44px_-26px_rgba(38,32,25,0.3)] sm:px-12">
-              {intro
-                .split(/\n+/)
-                .filter(Boolean)
-                .map((paragraph, index) => (
-                  <p
-                    key={index}
-                    className="whitespace-pre-wrap font-serif text-base leading-loose text-ink-soft sm:text-lg [&:not(:first-child)]:mt-5"
-                  >
-                    {paragraph}
-                  </p>
-                ))}
-            </article>
-          </Reveal>
-        ) : (
-          intro !== null && (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {DEFAULT_CARDS.map((card) => (
-                <AboutCard key={card.title} {...card} />
-              ))}
-            </div>
-          )
+        {cards.length > 0 && (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {cards.map((card, index) => (
+              <AboutCard
+                key={card.id}
+                icon={iconFor(card.title)}
+                title={card.title}
+                items={card.items}
+                note={card.note}
+                delay={Math.min(index, 5) * 60}
+              />
+            ))}
+          </div>
         )}
 
         <Reveal delay={140}>
