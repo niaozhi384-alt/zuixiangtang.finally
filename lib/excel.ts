@@ -14,6 +14,22 @@ const thinBorder: Partial<ExcelJS.Borders> = {
   right: { style: "thin", color: { argb: "FFE0D8C8" } },
 };
 
+/** 把可能被当作公式的首字符替换为全角，防止电子表格公式注入。 */
+const DANGEROUS_FIRST_CHAR: Record<string, string> = {
+  "=": "＝",
+  "+": "＋",
+  "-": "－",
+  "@": "＠",
+};
+
+function safeText(value: string): string {
+  const text = value.trim();
+  const first = text[0];
+  return first && DANGEROUS_FIRST_CHAR[first]
+    ? DANGEROUS_FIRST_CHAR[first] + text.slice(1)
+    : text;
+}
+
 export async function buildRegistrationsWorkbook(
   rows: Registration[]
 ): Promise<Buffer> {
@@ -35,7 +51,7 @@ export async function buildRegistrationsWorkbook(
   rows.forEach((row, index) => {
     sheet.addRow({
       index: index + 1,
-      gameName: row.gameName,
+      gameName: safeText(row.gameName),
       choice: CHOICE_LABEL[row.choice],
       createdAt: formatDateTime(row.createdAt),
       updatedAt: formatDateTime(row.updatedAt),
